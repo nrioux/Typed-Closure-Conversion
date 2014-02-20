@@ -11,6 +11,7 @@
         | True
         | False
         | Pair of Expression * Expression
+        | If of Expression * Expression * Expression
         | Application of Expression * Expression
         | Lambda of Id * Type * Expression
         | Projection of int * Expression
