@@ -1,4 +1,4 @@
-﻿module TargetLang =
+﻿module TargetLang
     type Id = int
 
     type Type =
