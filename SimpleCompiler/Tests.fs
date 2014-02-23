@@ -10,6 +10,21 @@
             Assert.AreEqual(Bool, typeOf Map.empty True)
             Assert.AreEqual(Product([Bool; Bool]), typeOf Map.empty (Tuple [True; False]))
             Assert.AreEqual(Function(Bool, Bool), typeOf Map.empty <| idFuncSource)
+
+        [<Test>]
+        let testEval() =
+            Assert.AreEqual(True, eval True)
+            Assert.AreEqual(idFuncSource, eval idFuncSource)
+            Assert.AreEqual(False, eval <| Projection(1, Tuple([True; False])))
+            let notFunc = Lambda("x", SourceLang.Bool,
+                                If(Variable "x", False, True))
+            Assert.AreEqual(notFunc, eval notFunc)
+            Assert.AreEqual(True, eval <| Application(notFunc, False))
+            Assert.AreEqual(False, eval <| Application(notFunc, True))
+            let applyFunc = Lambda("f", SourceLang.Bool,
+                                    Lambda("y", SourceLang.Bool,
+                                            Application(Variable "f", Variable "y")))
+            Assert.AreEqual(True, eval <| Application (Application(applyFunc, notFunc), False))
             
     module ConversionTests =
         open ClosureConversion
@@ -35,7 +50,6 @@
             Assert.AreEqual(["x"; "y"], SourceLang.freeVariables <|
                                             SourceLang.Tuple([SourceLang.Variable "x"; 
                                                                 SourceLang.Variable "y"]))
-
 
         [<Test>]
         let testClosureConversion() =
