@@ -26,7 +26,7 @@
         | Lambda(_, _, _) -> true
         | _ -> false
 
-
+    // Get all unbound variables in the expression
     let freeVariables expr =
         let rec fv bound e =
             match e with
@@ -46,6 +46,7 @@
             | _ -> []
         fv [] expr
         
+    /// Run f on the direct children of e and return the result
     let rec map f e =
         match e with
         | Tuple(items) -> Tuple (List.map f items)
@@ -56,13 +57,14 @@
         | Projection(i, e1) -> Projection(i, f e1)
         | _ -> e
 
-
+    /// Replace all variables in e with ids that are keys in mapping with their associated values
     let rec substitute mapping e =
         match e with
         | Variable id -> if Map.containsKey id mapping then
                             Map.find id mapping else e
         | _ -> map (substitute mapping) e
 
+    /// Determine the type of the expression e in environment G
     let rec typeOf G e =
         match e with
         | Variable id -> Map.find id G
@@ -81,6 +83,7 @@
             match typeOf G e1 with
             | Product(items) -> (List.nth items i) 
 
+    /// Evaluate the given expression
     let rec eval e =
         match e with
         | True | False | Lambda(_, _, _) -> e

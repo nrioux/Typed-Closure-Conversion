@@ -31,6 +31,7 @@
         | Pack(_, e, _, _) -> isValue(e)
         | _ -> false
 
+    /// Run f on the direct children of e and return the result
     let rec map f e =
         match e with
         | Tuple(items) -> Tuple (List.map f items)
@@ -45,8 +46,7 @@
         | Unpack(tid, id, e1, e2) -> Unpack(tid, id, f e1, f e2)
         | _ -> e
 
-
-    // e[target/replacement]
+    /// Replace all variables in e with ids that are keys in mapping with their associated values
     let rec substitute mapping e =
         match e with
         | Variable id -> if Map.containsKey id mapping then
