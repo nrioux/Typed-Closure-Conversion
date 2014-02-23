@@ -46,6 +46,23 @@
             | _ -> []
         fv [] expr
         
+    let rec map f e =
+        match e with
+        | Tuple(items) -> Tuple (List.map f items)
+        | If(e1, e2, e3) -> If(f e1, f e2, f e3)
+        | Application(e1, e2) ->
+            Application(f e1, f e2)
+        | Lambda(id, t, body) -> Lambda(id, t, f body)
+        | Projection(i, e1) -> Projection(i, f e1)
+        | _ -> e
+
+
+    let rec substitute mapping e =
+        match e with
+        | Variable id -> if Map.containsKey id mapping then
+                            Map.find id mapping else e
+        | _ -> map (substitute mapping) e
+
     let rec typeOf G e =
         match e with
         | Variable id -> Map.find id G
@@ -64,16 +81,26 @@
             match typeOf G e1 with
             | Product(items) -> (List.nth items i) 
 
-    (*let rec filter f e =
-        let filterRest = 
-            match e with
-            | Tuple(items) -> (List.choose f items)
-            | If(e1, e2, e3) -> (filter f e1) @ (filter f e2) @ (filter f e3)
-            | Application(e1, e2) -> (filter f e1) @ (filter f e2)
-            | Lambda(_, _, e1) -> filter f e1
-            | Projection(_, e1) -> filter f e1
-            | _ -> []
-        if (f e) then e :: filterRest else filterRest*)
+    let rec eval e =
+        match e with
+        | True | False | Lambda(_, _, _) -> e
+        | Tuple items -> 
+            Tuple(List.map eval items)
+        | If(e1, e2, e3) ->
+            match eval e1 with
+            | True -> eval e2
+            | False -> eval e3
+        | Application(e1, e2) ->
+            let e1' = eval e1
+            let e2' = eval e2
+            match e1' with
+            | Lambda(x, _, body) ->
+                eval (substitute (Map.add x e2' Map.empty) body) 
+        | Projection(i, e1) ->
+            match e1 with 
+            | Tuple(items) -> (eval (List.nth items i))
+
+
 
 
 
