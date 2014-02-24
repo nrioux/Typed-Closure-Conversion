@@ -29,9 +29,10 @@
         open TargetLang
 
         let notFunc = Lambda(0, [Bool], If(Variable 0, False, True))
-        let applyFunc = Lambda(0, [Function([0], [Bool], Bool); Bool], Application(Variable 1, [], [Variable 0]))
-        let applyFuncNested = Lambda(0, [Function([0], [Bool], Bool)], 
+        let applyFunc = Lambda(0, [Function(0, [Bool], Bool); Bool], Application(Variable 1, [], [Variable 0]))
+        let applyFuncNested = Lambda(0, [Function(0, [Bool], Bool)], 
                                           Lambda(0, [Bool], Application(Variable 1, [], [Variable 0])))
+        let genericIdFunc = Lambda(1, [TypeVariable 0], Variable 0)
 
         [<Test>]
         let testEval() =
@@ -42,6 +43,7 @@
             Assert.AreEqual(True, eval <| Application(notFunc, [], [False]))
             Assert.AreEqual(True, eval <| Application(applyFunc, [], [notFunc; False]),
                             "applyFunc")
+            Assert.AreEqual(True, eval <| Application(genericIdFunc, [Bool], [True]))
 
         [<Test>]
         let testEvalCurry() =
