@@ -1,4 +1,5 @@
-﻿module TargetLang
+﻿// System F with booleans, products, and existentials.
+module TargetLang
 
     type Id = uint64
 
@@ -36,11 +37,12 @@
         /// A lambda expression representing a function from a type to a term
         | LambdaType of Expression
         | Projection of int * Expression
-        (*pack   <t,     e> as       Ea.   t>*)
+        // pack  <t,     e> as       Ea.   t>*)
         | Pack of Type * Expression * Type
-        (*unpack   <a,   x> = e         in e*)
+        // unpack   <a, x> = e   in e*)
         | Unpack of Expression * Expression
 
+    /// Pretty-print the given type
     let rec formatType t =
         match t with
         | Bool -> "Bool"
@@ -51,7 +53,8 @@
         | Function(t1, t2) -> sprintf "%s → %s" <| formatType t1 <| formatType t2
         | Existential(t1) -> sprintf "∃.%s" <| formatType t1
         | Forall(t1) -> sprintf "∀.%s" <| formatType t1
-        
+    
+    /// Pretty-print the given expression
     let rec formatExpr e =
         match e with
         | True -> "true"
@@ -72,16 +75,19 @@
         | Pack(t1, e1, t2) -> sprintf "pack <%s, %s> as %s" <| formatType t1 <| formatExpr e1 <| formatType t2
         | Unpack(e1, e2) -> sprintf "unpack %s in %s" <| formatExpr e1 <| formatExpr e2
 
+    /// Apply the curried function e1 to multiple arguments
     let rec ApplicationMulti e1 args =
         match args with
         | [] -> e1
         | e2 :: args' -> ApplicationMulti (ApplicationTerm(e1, e2)) args'
 
+    /// A curried function type with multiple arguments
     let rec FunctionMulti argTypes returnType =
         match argTypes with
         | [] -> returnType
         | t :: argTypes' -> Function(t, FunctionMulti argTypes' returnType)
 
+    /// A curried function with multiple arguments
     let rec LambdaMulti argTypes body =
         match argTypes with
         | [] -> body
@@ -111,9 +117,8 @@
         | LambdaType(body) -> LambdaType(f body)
 
         | Projection(i, e1) -> Projection(i, f e1)
-        (*pack   <t,     e> as       Ea.   t>*)
+
         | Pack(t1, e1, t2) -> Pack(t1, f e1, t2)
-        (*unpack   <a,   x> = e         in e*)
         | Unpack(e1, e2) -> Unpack(f e1, f e2)
         | _ -> e
 
@@ -174,35 +179,6 @@
     let rec closeTerm x e =
         closeRecTerm x 0u e
 
-
-    /// Find type varialbes in term type annotations and substitute them
-//    let rec substituteTypeInTerm mapping e =
-//        let incMapping = Util.incKeys 1 mapping
-//        match e with 
-//        | LambdaTerm(t, body) -> LambdaTerm(substituteType mapping t, substituteTypeInTerm mapping body)
-//        | LambdaType(body) -> LambdaType(substituteTypeInTerm incMapping body)
-//        | Pack(t1, e, t2) -> 
-//            Pack(substituteType mapping t1, substituteTypeInTerm mapping e, substituteType incMapping t2)
-//        | _ -> map (substituteTypeInTerm mapping) e
-
-    /// Replace variables in e with corresponding indices
-//    let rec substitute mapping e =
-//        let incMapping = Map.map (fun _ -> liftTerms) <| Util.incKeys 1 mapping
-//        let sub = substitute mapping
-//        let sub' = substitute incMapping
-//        match e with
-//        | Variable id -> if Map.containsKey id mapping then
-//                            Map.find id mapping else e
-//        | LambdaTerm(t, body) ->
-//            LambdaTerm(t, sub' body)
-//        | LambdaType(body) ->
-//            LambdaType(sub body)
-//        | Unpack(e1, e2) ->
-//            // e1 is bound to 0 in e2
-//            Unpack(sub e1, sub' e2)
-//        | _ ->
-//            map sub e
-
     let rec subst e x trm =
         match e with
         | FreeVar(y) -> if x = y then trm else FreeVar(y)
@@ -211,57 +187,55 @@
     /// Get the type of a term in the given environment.
     /// D is the number of types in the current type environment.
     /// G is the current value:type environment
-    let rec typeCheck D G e =
+    let rec typeCheck G e =
         System.Diagnostics.Debug.WriteLine(sprintf "typeCheck %A" <| formatExpr e)
         match e with
         | FreeVar id -> Map.find id G
         | True | False -> Bool
-        | Tuple items -> Product(List.map (typeCheck D G) items)
+        | Tuple items -> Product(List.map (typeCheck G) items)
         | LambdaTerm(t, body) -> 
             let x = genId ()
             let G' = Map.add x t G
-            Function(t, typeCheck D G' (openTermWithVar x body))
+            Function(t, typeCheck G' (openTermWithVar x body))
         | LambdaType body ->
-            Forall (typeCheck (D + 1) G body)
+            Forall (typeCheck G body)
         | Pack(_, _, ex_type) -> Existential(ex_type)
 
         | Projection(i, e1) ->
-            match typeCheck D G e1 with
+            match typeCheck G e1 with
             | Product(types) -> List.nth types i
         
         | If(e1, e2, e3) ->
-            assert (typeCheck D G e1 = Bool)
-            let t2 = typeCheck D G e2
-//            assert (typeCheck D G e3 = t2)
-            t2
+            assert (typeCheck G e1 = Bool)
+            typeCheck G e2
 
         | Unpack(e1, e2) ->
-            let ex_type = typeCheck D G e1
+            let ex_type = typeCheck G e1
             match ex_type with
             | Existential(t) ->
                 let x = genId ()
                 let G' = Map.add x t G
-                typeCheck (D + 1) G' (openTermWithVar x e2)
+                typeCheck G' (openTermWithVar x e2)
 
         | ApplicationTerm(e1, e2) ->
-            let t = typeCheck D G e1
+            let t = typeCheck G e1
             match t with
             | Function(argType, returnType) ->
                 // Make sure arguments have the correct types
-                //assert (t = typeCheck D G e2)
+                assert (t = typeCheck G e2)
                 returnType
 
         | ApplicationType(e1, t) ->
             System.Diagnostics.Debug.WriteLine(formatExpr e, "application1")
-            let tp = typeCheck D G e1
+            let tp = typeCheck G e1
             System.Diagnostics.Debug.WriteLine(formatType tp, "application2")
             match tp with
             | Forall tbody ->
                 openType t tbody
 
-    let getType e = typeCheck 0 Map.empty e
+    let getType e = typeCheck Map.empty e
 
-    // apply a function to the next element in the list that isn't a value
+    /// Apply a function to the next element in the list that isn't a value
     let rec applyToNextExpr f items =
         match items with
         | e::tail -> if isValue e then e::(applyToNextExpr f tail)
@@ -287,7 +261,7 @@
 
         | Unpack(Pack(tau, e1, _), body) ->
             openTerm e1 body
-//            |> substituteTypeInTerm (Map.ofList [0, tau]) 
+
         | Unpack(e1, e2) -> 
             Unpack(step e1, e2)
 
@@ -314,16 +288,13 @@
         | Projection(i, e1) ->
             Projection(i, step e1)
 
-
-
     let rec eval e =
-        let t = getType e
-        System.Diagnostics.Debug.WriteLine(formatExpr e, "eval")
         if isValue e then e
         else 
             let e' = eval (step e)
-            let t' = getType e'
-            //assert (t = t')
+            // let t = getType e
+            // let t' = getType e'
+            // assert (t = t')
             e'
 
 

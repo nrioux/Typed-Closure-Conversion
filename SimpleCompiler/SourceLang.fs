@@ -1,4 +1,5 @@
-﻿module SourceLang
+﻿/// STLC with booleans and product types.
+module SourceLang
     type Id = uint64
 
     let mutable lastid : uint64 = 0UL
@@ -62,18 +63,19 @@
         | Projection(i, e1) -> Projection(i, f e1)
         | _ -> e
 
+    /// Substitute trm for the bound variable at depth k in e
     let rec openRecTerm e trm k =
         match e with
         | BoundVar(i) -> if i = k then trm else BoundVar i
         | Lambda(t, body) -> Lambda(t, openRecTerm body trm (k + 1u))
         | _ -> map (fun e' -> openRecTerm e' trm k) e
 
+    /// Substitute trm for the outermost bound variable
     let rec openTerm e trm =
         openRecTerm e trm 0u
 
     let rec openTermWithVar e x =
         openTerm e (FreeVar x)
-
 
     /// Replace all variables in e with ids that are keys in mapping with their associated values
     let rec subst e x trm =
