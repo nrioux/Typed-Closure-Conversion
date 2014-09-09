@@ -61,11 +61,6 @@
                 let env = TargetLang.Tuple (fvTarg)
                 let env_id = TargetLang.genId ()
 
-                // Sanity check
-//                let Gt = Map.ofList <|
-//                             List.map (fun (id, tau) -> (Map.find id I, translationType tau)) (Map.toList G) 
-//                assert (TargetLang.typeCheck 0 Gt env = tenv)
-
                 // substitute free variables for projections on the env tuple
                 let inner = List.fold2
                                   <| fun e' id proj -> TargetLang.subst e' id proj
