@@ -58,8 +58,6 @@
             Assert.AreEqual(True, eval <| ApplicationTerm(ApplicationType(genericIdFunc, Bool), True))
             let pack = Pack(Bool, True, BoundTypeVar 0u)
             Assert.AreEqual(pack, eval pack)
-            // Note: this isn't a valid unpack becuase it exposes a term of type alpha.
-            // Assert.AreEqual(True, eval <| Unpack (pack, Variable 0))
 
         [<Test>]
         let testTypeChecker() =
@@ -70,9 +68,6 @@
             Assert.AreEqual(Function(Bool, Bool), getType notFunc)
             Assert.AreEqual(Existential(Bool), getType <| Pack(Bool, True, Bool))
             Assert.AreEqual(Existential(BoundTypeVar 0u), getType <| Pack(Bool, True, BoundTypeVar 0u))
-//            let test = ApplicationType(LambdaType(LambdaType(LambdaTerm(TypeVariable 0, Variable 0))), Bool)
-//            Assert.AreEqual(Forall <| Function(TypeVariable 0, TypeVariable 0),
-//                            getType test)
 
         [<Test>]
         let testEvalCurry() =
@@ -108,14 +103,14 @@
         let testFV() =
             Assert.AreEqual([], SourceLang.freeVariables SourceLang.True)
             Assert.AreEqual([], SourceLang.freeVariables idFuncSource)
-//            Assert.AreEqual(["x"], SourceLang.freeVariables <| SourceLang.Variable "x")
-//            Assert.AreEqual(["x"; "y"], SourceLang.freeVariables <|
-//                                            SourceLang.Tuple([SourceLang.Variable "x"; 
-//                                                                SourceLang.Variable "y"]))
-//            Assert.AreEqual(["y"], SourceLang.freeVariables <|
-//                                            SourceLang.Lambda("x", SourceLang.Bool, 
-//                                                              SourceLang.Application(SourceLang.Variable "x",
-//                                                                                     SourceLang.Variable "y")))
+            let x = SourceLang.genId ()
+            let y = SourceLang.genId ()
+            Assert.AreEqual([x], SourceLang.freeVariables <| SourceLang.FreeVar x)
+            
+            Assert.AreEqual(Set.ofList [x; y], Set.ofList
+                                            (SourceLang.freeVariables <|
+                                                SourceLang.Tuple([SourceLang.FreeVar x; 
+                                                                  SourceLang.FreeVar y])))
 
         [<Test>]
         let testClosureConversion() =
@@ -130,8 +125,6 @@
             | TargetLang.Existential(tau) ->
                 let expected = TargetLang.Pack(tenv, TargetLang.Tuple([TargetLang.ApplicationType(body, tenv); env]), tau)
                 let actual = convertTerm idFuncSource
-                Debug.WriteLine("expected " + TargetLang.formatExpr expected)
-                Debug.WriteLine("actual " + TargetLang.formatExpr actual)
                 Assert.AreEqual(expected, actual, "ID function closure conversion")
        
         [<Test>]
@@ -150,25 +143,18 @@
             let a = convertTerm <| SourceLang.eval e
             let at = TargetLang.getType a
             let b = convertTerm e
-            Debug.WriteLine "CONVERSION"
-            Debug.WriteLine(sprintf "typeCheck %A" <| TargetLang.formatExpr b)
-            Debug.WriteLine "END CONVERSION"
             let bt = TargetLang.getType b
             Assert.AreEqual(at, bt, "Conversion type preservation")
 
-            Debug.WriteLine (sprintf "a  %s" <| TargetLang.formatExpr a, "debug")
-            Debug.WriteLine (sprintf "b  %s" <| TargetLang.formatExpr b, "debug")
+            let a' = TargetLang.eval a
             let b' = TargetLang.eval b
-            Debug.WriteLine (sprintf "b' %s" <| TargetLang.formatExpr b', "debug")
             
             Assert.AreEqual(bt, TargetLang.getType b', "Eval type preservation")
-            Assert.AreEqual(a, b', "Conversion equivalence")
+            Assert.AreEqual(a', b', "Conversion equivalence")
 
         [<Test>]
         let testConversionEquivalence() =
-            //let test = SourceLang.Application(SourceLang.Application(SourceFunctions.applyFunc,
-            //                                    SourceFunctions.idBoolBool), SourceLang.True)
-            // checkConversionEquiv <| SourceFunctions.idBoolBool
+            checkConversionEquiv <| SourceFunctions.idBoolBool
             checkConversionEquiv <| SourceLang.Application(SourceFunctions.notFunc, SourceLang.True)
             checkConversionEquiv <| SourceLang.Application(SourceLang.Application(SourceFunctions.idBoolBool, 
                                                             SourceFunctions.notFunc), SourceLang.True)
@@ -178,7 +164,7 @@
                               SourceLang.True),
                           SourceLang.False)
             checkConversionEquiv app
-            Debug.WriteLine(sprintf "app %s" <| TargetLang.formatExpr (convertTerm app), "debug")
+
             let test = SourceLang.Application(SourceLang.Application(SourceFunctions.applyFunc,
                                                 SourceFunctions.idBoolBool), SourceLang.True)
             checkConversionEquiv test
